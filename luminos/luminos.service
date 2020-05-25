@@ -1,0 +1,14 @@
+[Unit]
+Description=A fun thing
+After=pulseaudio.service
+
+[Service]
+User=pi
+Group=pi
+Type=simple
+ExecStart=/home/pi/luminos/luminos.py
+Restart=always
+
+[Install]
+WantedBy=default.target
+
