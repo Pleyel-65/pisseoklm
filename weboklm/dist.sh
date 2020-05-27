@@ -15,7 +15,7 @@ npm run build
 npm --prefix front run build
 
 # package backend
-cp -r weboklm.sh package.json node_modules build $DIST/
+cp -r weboklm.sh weboklm.service setup.sh package.json node_modules build $DIST/
 cp .env.rpi $DIST/.env
 
 # package front-end

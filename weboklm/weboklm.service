@@ -7,7 +7,6 @@ User=pi
 Group=pi
 Type=simple
 ExecStart=/home/pi/weboklm/weboklm.sh
-Environment=PULSE_RUNTIME_PATH=/home/pi/pulse-runtime
 Restart=always
 
 [Install]

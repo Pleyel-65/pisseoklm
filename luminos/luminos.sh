@@ -7,4 +7,6 @@ source ../pisseoklm.profile
 # can be overrided 
 CACA_LOG=${CACA_LOG:-../caca.log}
 
+touch $CACA_LOG
+
 exec python ./luminos.py

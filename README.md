@@ -12,7 +12,7 @@ La rapsberry pi est positionné dans un caninet de toilettes à côté d'une enc
 
 Un dispositif de detection de lumière est positionnée entre le raspberry pi et l'ampoule illuminant les toilettes pendant utilisation.
 
-L'entrée d'un utilisateur est détectée par allumage de la lumière. L'assistant accompagne l'utiliateur dans son occupation en jouant de la musique et en raccontant des choses.
+L'entrée d'un utilisateur est détectée par allumage de la lumière. L'assistant accompagne l'utilisateur dans son occupation en jouant de la musique et en raccontant des choses.
 
 ## Composants
 
