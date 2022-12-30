@@ -6,8 +6,7 @@ After=pulseaudio.service
 User=pi
 Group=pi
 Type=simple
-ExecStart=/home/pi/musik/musik.sh
-Environment=PULSE_RUNTIME_PATH=/home/pi/pulse-runtime
+ExecStart=/home/pi/muzik/muzik.sh
 Restart=always
 
 [Install]

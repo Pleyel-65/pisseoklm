@@ -6,8 +6,7 @@ After=pisseoklm.service
 User=pi
 Group=pi
 Type=simple
-ExecStart=/home/pi/politesse.sh
-Environment=PULSE_RUNTIME_PATH=/home/pi/pulse-runtime
+ExecStart=/home/pi/politesse/politesse.sh
 Restart=always
 
 [Install]

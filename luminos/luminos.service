@@ -6,7 +6,7 @@ After=pulseaudio.service
 User=pi
 Group=pi
 Type=simple
-ExecStart=/home/pi/luminos/luminos.py
+ExecStart=/home/pi/luminos/luminos.sh
 Restart=always
 
 [Install]

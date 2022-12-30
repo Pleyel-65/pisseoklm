@@ -1,0 +1,9 @@
+
+export BT_ADDR="{BT_ADDR}"
+export MOOD="{MOOD}"
+export BT_ENABLE="{BT_ENABLE}"
+
+export BASEDIR=$HOME
+export PATH="$BASEDIR/node/bin/:/home/pi/.local/bin/:$PATH"
+
+source $BASEDIR/pisseoklm-generic.profile
