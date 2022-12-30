@@ -40,6 +40,8 @@ module.exports.monitor = function(num, callback) {
   const pin = pins[num]
 
   function watchCallback(err, value) {
+
+    console.log(`watch : value=${value}, err=${err}`)
     if (err) {
       throw err;
     }
@@ -57,6 +59,7 @@ module.exports.write = function(num, value) {
   if (!(num in pins)) {
     throw new Error(`ERROR: pin ${num} not initialized`)
   }
+  console.log(`write pin ${num} value ${value}`)
   const pin = pins[num]
   pin.writeSync(value)
 }
@@ -67,4 +70,5 @@ process.on('SIGINT', _ => {
     pin.unexport()
   }
   pins = {}
+  process.exit();
 });

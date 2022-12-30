@@ -21,22 +21,42 @@ function evaluateConstant(name) {
   return scenario.constants[name]
 }
 
-function evaluateScalar(scalar) {
+function evaluateFunction(value) {
+  if (!(value.function in functionSpecs)) {
+    throw new Error(`ERROR: function ${value} is not defined`)
+  }
+  const spec = functionSpecs[value.function]
+  const functionEval = {...spec.defaults || {}, ...value }
+  for (const field of spec.evaluate || []) {
+    functionEval[field] = evaluate(functionEval[field])
+  }
+  return spec.handler(functionEval)
+}
 
-  if (typeof scalar === 'string') {
-    if (scalar.length > 0 && scalar[0] === '$') {
-      return evaluateConstant(scalar.substring(1))
+function evaluate(value) {
+
+  if (typeof value === 'string') {
+    if (value.length > 0 && value[0] === '$') {
+      return evaluate(evaluateConstant(value.substring(1)))
     }
   }
 
-  return scalar
+  else if (Array.isArray(value)) {
+    return value.map(item => evaluate(item))
+  }
+  
+  else if (value !== null && typeof value == 'object' && value.function) {
+    return evaluate(evaluateFunction(value))
+  }
+
+  return value
 }
 
 function evaluateAction(action, spec) {
 
   const actionEval = {...commonActionSpec.defaults, ...spec.defaults || {}, ...action}
   for (const field of spec.evaluate || []) {
-    actionEval[field] = evaluateScalar(actionEval[field])
+    actionEval[field] = evaluate(actionEval[field])
   }
 
   return actionEval
@@ -85,6 +105,7 @@ function executeAction(action, callback = () => {}) {
 
   if (spec.sync) {
     spec.handler(id, actionEval, null)
+    callback()
     return () => {}
   }
   else {
@@ -130,25 +151,19 @@ function executeActionSequence(id, action, callback) {
 
   let i = -1;
   let killed = false;
-  let killCurentAction = null;
 
   function executeNext() {
     i += 1
     if (killed || i >= action.group.length) {
       callback()
     }
-    else {
-      killCurrentAction = executeAction(action.group[i], executeNext)
-      // WARNING: this is tricky
-      if (killCurentAction === null) { // in case next action is sync, null is returned and callback is not called
-        executeNext()
-      }
+    else {      
+        executeAction(action.group[i], () => setImmediate(executeNext))
     }
   }
 
   function kill() {
     killed = true
-    killCurentAction && killCurrentAction()
   }
 
   executeNext()
@@ -180,6 +195,44 @@ function executeActionTimer(id, action, callback) {
 
   const timeoutRef = setTimeout(function() {
     executeAction(action.action)
+    callback()
+  }, action.seconds * 1000)
+
+  function kill() {
+    clearTimeout(timeoutRef)
+    callback()
+  }
+
+  return kill
+}
+
+function executeActionLoop(id, action, callback) {
+
+  let i = -1;
+  let killed = false;
+
+  function executeNext() {
+    i += 1
+    if (killed || (action.count !== 'infinite' && i >= action.count)) {
+      callback()
+    }
+    else {      
+        executeAction(action.action, () => setImmediate(executeNext))
+    }
+  }
+
+  function kill() {
+    killed = true
+  }
+
+  executeNext()
+
+  return kill
+}
+
+function executeActionSleep(id, action, callback) {
+
+  const timeoutRef = setTimeout(function() {
     callback()
   }, action.seconds * 1000)
 
@@ -270,6 +323,16 @@ const actionSpecs = {
     sync: false,
     evaluate: ['seconds']
   },
+  'loop': {
+    handler: executeActionLoop,
+    sync: false,
+    evaluate: ['count']
+  },
+  'sleep': {
+    handler: executeActionSleep,
+    sync: false,
+    evaluate: ['seconds']
+  },
   'suspend': {
     handler: executeActionSuspend,
     sync: true,
@@ -304,6 +367,45 @@ const actionSpecs = {
   }
 }
 
+function executeFunctionRandomChoice(functionEval) {
+  return functionEval.choices[Math.floor(Math.random() * functionEval.choices.length)];
+} 
+
+function executeFunctionRandomInt(functionEval) {
+  return Math.floor(Math.random() * (functionEval.max - functionEval.min + 1)) + functionEval.min;
+}
+
+function executeFunctionRandomFloat(functionEval) {
+  return Math.random() * (functionEval.max - functionEval.min) + functionEval.min;
+}
+
+function executeFunctionRandomBool(functionEval) {
+  return Math.random() < 0.5;
+}
+
+const functionSpecs = {
+  'randomChoice': {
+    handler: executeFunctionRandomChoice,
+    evaluate: ['choices']
+  },
+  'randomInt': {
+    handler: executeFunctionRandomInt,
+    evaluate: ['min', 'max'],
+    defaults: {
+      min: 0
+    }
+  },
+  'randomFloat': {
+    handler: executeFunctionRandomFloat,
+    evaluate: ['min', 'max'],
+    defaults: {
+      min: 0
+    }
+  },
+  'randomBool': {
+    handler: executeFunctionRandomBool,
+  }
+}
 
 //////////////////////////
 // Start of the program
