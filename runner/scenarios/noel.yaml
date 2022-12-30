@@ -1,0 +1,503 @@
+constants:
+  pinR: 14
+  pinL: 15
+  redButton: 26
+  greenButton: 19
+  blueButton: 13
+  yellowButton: 6
+  blackButton: 5
+
+  onR: 1
+  offR: 0
+  onL: 1
+  offL: 0
+
+  rings:
+  - data/noel/tel/ring1.mp3
+  - data/noel/tel/ring2.mp3
+
+  hints:
+  - data/noel/speech/12-hint-bidon.mp3
+  - data/noel/speech/12-hint-bidon.mp3
+
+  hpMusics:
+  - data/noel/hp/Christmas_at_Hogwarts-MMvfOUer3Vo.mp3
+  # - data/noel/hp/Diagon_Alley_and_the_Gringotts_Vault-u0WTsW1iXos.mp3
+  # - data/noel/hp/Entry_into_the_Great_Hall_and_the_Banquet-nMOeX7FssQU.mp3
+  # - data/noel/hp/Fluffy_s_Harp-__bhONdmFTU.mp3
+  - data/noel/hp/Harry_s_Wondrous_World-yB-c85V8Zsg.mp3
+  - data/noel/hp/Hedwig_s_Theme-wtHra9tFISY.mp3
+  # - data/noel/hp/Hogwarts_Forever__and_the_Moving_Stairs-bVB-Z420V98.mp3
+  # - data/noel/hp/In_the_Devil_s_Snare_and_the_Flying_Keys-pM_kNnVsFnM.mp3
+  # - data/noel/hp/Leaving_Hogwarts-PmQ1XTWg74M.mp3
+  - data/noel/hp/Mr._Longbottom_Flies-uG0FlXOlXV4.mp3
+  # - data/noel/hp/Platform_Nine-and-Three-Quarters_and_the_Journey_to_Hogwarts-Y6yzp-Fk9TM.mp3
+  - data/noel/hp/Prologue-UuPb1J_RCJM.mp3
+  # - data/noel/hp/The_Arrival_of_Baby_Harry-GBX70bqJpXo.mp3
+  # - data/noel/hp/The_Chess_Game-MDwR6YZCBIA.mp3
+  # - data/noel/hp/The_Face_of_Voldemort-ydlzNv40yZM.mp3
+  # - data/noel/hp/The_Invisibility_Cloak_and_the_Library_Scene-YmWHTyVn1Lc.mp3
+  # - data/noel/hp/The_Norwegian_Ridgeback_and_a_Change_of_Season-KEs8K-CwD5o.mp3
+  # - data/noel/hp/The_Quidditch_Match-85iFOmfcUd0.mp3
+  # - data/noel/hp/Visit_to_the_Zoo_and_Letters_from_Hogwarts-hC0BFjkB85Q.mp3
+  
+
+variables:
+  state: 'idle'
+  giftNum: 0
+  hintGiven: false
+
+events:
+
+  _START_:
+    type: sequence
+    group:
+    - type: pinInit
+      num: $greenButton
+      direction: in
+      edge: both
+      pull: up
+      debounceTimeout: 100
+    - type: pinInit
+      num: $redButton
+      direction: in
+      edge: both
+      pull: up
+      debounceTimeout: 100
+    - type: pinInit
+      num: $blueButton
+      direction: in
+      edge: both
+      pull: up
+      debounceTimeout: 100
+    - type: pinInit
+      num: $yellowButton
+      direction: in
+      edge: both
+      pull: up
+      debounceTimeout: 100
+    - type: pinInit
+      num: $blackButton
+      direction: in
+      edge: both
+      pull: up
+      debounceTimeout: 100
+    - type: pinInit
+      num: $pinL
+      direction: out
+    - type: pinInit
+      num: $pinR
+      direction: out
+    - type: parallel
+      group:      
+      - type: pinMonitor
+        num: $greenButton
+        persist: true
+        low:
+          type: emit
+          event: green
+      - type: pinMonitor
+        num: $redButton
+        persist: true
+        low:
+          type: emit
+          event: red
+      - type: pinMonitor
+        num: $yellowButton
+        persist: true
+        low:
+          type: emit
+          event: yellow
+      - type: pinMonitor
+        num: $blueButton
+        persist: true
+        low:
+          type: emit
+          event: blue
+      - type: pinMonitor
+        num: $blackButton
+        persist: true
+        low:
+          type: emit
+          event: black
+      - type: emit
+        event: idle
+
+
+  _STOP_:
+    type: sequence
+    group:
+    - type: pinOutput
+      num: $pinL
+      value: $offL
+    - type: pinOutput
+      num: $pinR
+      value: $offR
+
+  green:
+    type: condition
+    if:
+      function: eq
+      a: $state
+      b: ringing
+    then:
+      type: emit
+      event: pickUp
+    else:
+      type: condition
+      if:
+        function: eq
+        a: $state
+        b: idle
+      then:
+        type: emit
+        event: compose
+
+  red:
+    type: condition
+    if:
+      function: in
+      value: $state
+      array: ['ringing', 'composing', 'inCall', 'inMenu']
+    then:
+      type: emit
+      event: hangUp
+
+  blue:
+    type: condition
+    if:
+      function: eq
+      a: $state
+      b: inMenu
+    then:
+      type: sequence
+      group:
+      - type: audio
+        track: data/noel/tel/beep.mp3
+      - type: emit
+        event: menuRepeatHint
+
+  yellow:
+    type: condition
+    if:
+      function: eq
+      a: $state
+      b: inMenu
+    then:
+      type: sequence
+      group:
+      - type: audio
+        track: data/noel/tel/beep.mp3
+      - type: emit
+        event: menuCongrats
+
+  black:
+    type: condition
+    if:
+      function: eq
+      a: $state
+      b: inMenu
+    then:
+      type: sequence
+      group:
+      - type: audio
+        track: data/noel/tel/beep.mp3
+      - type: emit
+        event: menuExplain
+    else:
+      type: condition
+      if:
+        function: eq
+        a: $state
+        b: idle
+      then:
+        type: emit
+        event: proute
+
+  pickUp:
+    type: killAll
+    then:
+      type: parallel
+      group:
+      - type: set
+        name: state
+        value: inCall
+      - type: pinOutput
+        num: $pinL
+        value: $onL
+      - type: audio
+        track:
+          function: randomChoice
+          choices: $hpMusics
+        persist: true
+        tags: [callMusic]
+      - type: timer
+        seconds: 1.5
+        action:
+          type: condition
+          if: $hintGiven
+          then:
+            type: sequence
+            group:
+            - type: audio
+              track: data/noel/speech/4-whatsup.mp3
+            - type: emit
+              event: phoneMenu
+          else:
+            type: sequence
+            group:
+            - type: condition
+              if:
+                function: eq
+                a: $giftNum
+                b: 0
+              then:
+                type: audio
+                track: data/noel/speech/1-premier-bonjour-short.mp3
+              else:
+                type: audio
+                track: data/noel/speech/2-bonjour-nouveau-cadeau.mp3
+            - type: audio
+              track:
+                function: at
+                object: $hints
+                key: $giftNum
+            - type: set
+              name: hintGiven
+              value: true
+            - type: audio
+              track: data/noel/speech/3-rappelez-moi.mp3
+            - type: emit
+              event: hangUp
+
+  compose:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: set
+        name: state
+        value: composing
+      - type: pinOutput
+        num: $pinL
+        value: $onL
+      - type: audio
+        track: data/noel/tel/typing.mp3    
+      - type: audio
+        track: data/noel/tel/outgoing.mp3
+        timeout:
+          function: randomInt
+          min: 2
+          max: 10
+      - type: emit
+        event: pereNoelPickUp
+
+  pereNoelPickUp:
+    type: killAll
+    then:
+      type: parallel
+      group:
+      - type: set
+        name: state
+        value: inCall
+      - type: pinOutput
+        num: $pinL
+        value: $onL
+      - type: audio
+        track:
+          function: randomChoice
+          choices: $hpMusics
+        persist: true
+        tags: [callMusic]
+      - type: timer
+        seconds: 1.5
+        action:
+          type: sequence
+          group:
+          - type: condition
+            if: $hintGiven
+            then:
+              type: sequence
+              group:
+              - type: audio
+                track: data/noel/speech/5-allo-pere-noel.mp3
+              - type: emit
+                event: phoneMenu
+            else:
+              type: sequence
+              group:
+              - type: audio
+                track: data/noel/speech/6-allo-mere-noel.mp3
+              - type: emit
+                event: hangUp
+
+  phoneMenu:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: set
+        name: state
+        value: inMenu
+      - type: audio
+        track: data/noel/speech/7-menu.mp3
+      - type: sleep
+        seconds: 10
+      - type: audio
+        track: data/noel/speech/8-bye-menu.mp3
+      - type: emit
+        event: hangUp
+
+  menuRepeatHint:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: audio
+        track: data/noel/speech/11-repeter-indice.mp3
+      - type: audio
+        track:
+          function: at
+          object: $hints
+          key: $giftNum
+      - type: sleep
+        seconds: 5
+      - type: audio
+        track: data/noel/speech/8-bye-menu.mp3
+      - type: emit
+        event: hangUp
+
+  menuCongrats:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: set
+        name: giftNum
+        value:
+          function: add
+          a: $giftNum
+          b: 1
+      - type: set
+        name: hintGiven
+        value: false
+      - type: condition
+        if:
+          function: eq
+          a: $giftNum
+          b:
+            function: len
+            array: $hints
+        then:
+          type: emit
+          event: final
+        else:
+          type: sequence
+          group:
+          - type: audio
+            track: data/noel/speech/9-felicitations.mp3
+          - type: emit
+            event: hangUp
+
+  menuExplain:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: audio
+        track: data/noel/speech/10-expliquer-les-regles.mp3
+      - type: sleep
+        seconds: 5
+      - type: audio
+        track: data/noel/speech/8-bye-menu.mp3
+      - type: emit
+        event: hangUp
+
+  hangUp:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: killTag
+        target: callMusic
+      - type: set
+        name: state
+        value: closingCall
+      - type: pinOutput
+        num: $pinL
+        value: $offL
+      - type: audio
+        track: data/noel/tel/endcall.mp3
+      - type: emit
+        event: idle
+
+  idle:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: set
+        name: state
+        value: idle
+      - type: pinOutput
+        num: $pinL
+        value: $offL
+      - type: sleep
+        seconds:
+          function: randomInt
+          min: 2
+          max: 2
+      - type: emit
+        event: ring
+    
+  ring:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: set
+        name: state
+        value: ringing
+      - type: parallel
+        group:
+        - type: loop
+          count: infinite
+          action:
+            type: sequence
+            group:
+            - type: timer
+              seconds: 0.5
+              action:
+                type: pinOutput
+                num: $pinL
+                value: $onL
+            - type: timer
+              seconds: 0.5
+              action:
+                type: pinOutput
+                num: $pinL
+                value: $offL
+        - type: sequence
+          group:
+          - type: audio
+            track:
+              function: randomChoice
+              choices: $rings
+          - type: emit
+            event: idle
+
+  final:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: set
+        name: state
+        value: finished
+      - type: audio
+        track: data/noel/speech/13-final.mp3
+      - type: audio
+        track: data/disco/12.mp3
+
+  proute:
+    # TODO: play proute
