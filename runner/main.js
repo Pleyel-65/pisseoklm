@@ -316,10 +316,10 @@ function executeActionPinMonitor(id, action, callback) {
 
   const unmonitor = gpio.monitor(action.num, (value) => {
     if (value === 0) {
-      executeAction(action.low)
+      action.low && executeAction(action.low)
     }
     else {
-      executeAction(action.high)  
+      action.high && executeAction(action.high)  
     }
   })
 
@@ -420,10 +420,11 @@ const actionSpecs = {
   'pinInit': {
     handler: executeActionPinInit,
     sync: true,
-    evaluate: ['num', 'direction', 'edge', 'pull'],
+    evaluate: ['num', 'direction', 'edge', 'pull', 'debounceTimeout'],
     defaults: {
       edge: 'none',
-      pull: null
+      pull: null,
+      debounceTimeout: null
     }
   },
   'pinMonitor': {
@@ -459,6 +460,14 @@ function executeFunctionRandomBool(functionEval) {
   return Math.random() < 0.5;
 }
 
+function executeFunctionOr(functionEval) {
+  return functionEval.args.some(item => item && true)
+}
+
+function executeFunctionAnd(functionEval) {
+  return functionEval.args.every(item => item && true)
+}
+
 const functionSpecs = {
   'randomChoice': {
     handler: executeFunctionRandomChoice,
@@ -480,7 +489,16 @@ const functionSpecs = {
   },
   'randomBool': {
     handler: executeFunctionRandomBool,
+  },
+  'or': {
+    handler: executeFunctionOr,
+    evaluate: ['args']
+  },
+  'and': {
+    handler: executeFunctionAnd,
+    evaluate: ['args']
   }
+
 }
 
 //////////////////////////
