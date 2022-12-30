@@ -1,6 +1,9 @@
+const fs = require('fs');
+const YAML = require('yaml')
 const config = require('./config.json')
 const httpServer = require('./httpServer.js')
-const audio = require('./audio.js')
+const audio = require('./audio.js');
+const gpio = require('./gpio.js')
 
 let idCounter = 0
 function getNewId() {
@@ -8,130 +11,100 @@ function getNewId() {
     idCounter = 0
   }
   idCounter = (idCounter + 1)
-  return idCounter
+  return idCounter.toString()
+}
+
+function evaluateConstant(name) {
+  if (!(name in scenario.constants)) {
+    throw new Error(`ERROR: constant ${name} is not defined`)
+  }
+  return scenario.constants[name]
+}
+
+function evaluateScalar(scalar) {
+
+  if (typeof scalar === 'string') {
+    if (scalar.length > 0 && scalar[0] === '$') {
+      return evaluateConstant(scalar.substring(1))
+    }
+  }
+
+  return scalar
+}
+
+function evaluateAction(action, spec) {
+
+  const actionEval = {...commonActionSpec.defaults, ...spec.defaults || {}, ...action}
+  for (const field of spec.evaluate || []) {
+    actionEval[field] = evaluateScalar(actionEval[field])
+  }
+
+  return actionEval
 }
 
 // Load the scenario
-let scenario = {
-  
-  tracks: {
-    "test1": "data/music-test1.mp3",
-    "test2": "data/music-test2.mp3"
-  },
+let scenarioYaml = fs.readFileSync(config.scenario.path, 'utf8');
+let scenario = YAML.parse(scenarioYaml);
 
-  global: {
-    timers: [
-    ]
-  },
-
-  busy: {
-    timers: [
-      {
-        seconds: 0,
-        action: {
-          type: "audio",
-          track: "test2",
-          repeat: false,
-        },
-      }
-    ],
-  },
-
-  idle: {
-    timers: [
-      {
-        seconds: 5,
-        action: {
-          type: "audio",
-          track: "test1",
-          repeat: false,
-        },
-      }
-    ],
-  }
-}
-
+// initialize the state
 let state = {
-  isBusy: false,
 
-  busy: {
-    timeouts: {},
-    actions: {}
-  },
+  timeouts: {},
+  actions: {},
 
-  idle: {
-    timeouts: {},
-    actions: {}
-  },
+  suspendedEvents: {}
+}
 
-  global: {
-    timeouts: {},
-    actions: {}
+function emitEvent(event) {
+  console.log(`event ${event} emitted`)
+
+  if (event in state.suspendedEvents) {
+    console.log(`event ${event} is suspended`)
+    return ;
   }
-}
 
-
-function getSubScenario(isBusy) {
-  return isBusy ? scenario.busy : scenario.idle
-}
-
-function getSubState(isBusy) {
-  return isBusy ? state.busy : state.idle
-}
-
-function setState(isBusy) {
-  if (state.isBusy !== isBusy) {
-
-    // kill all actions and timeout of current state
-    killAll(getSubState(state.isBusy))
-
-    state.isBusy = isBusy
-
-
-    // schedule all timers for the current state
-    const subScenario = getSubScenario(state.isBusy)
-    const subState = getSubState(state.isBusy)
-
-    schedule(subScenario, subState)
-  }
-}
-
-function schedule(subScenario, subState) {
-  scheduleTimers(subScenario, subState)
-}
-
-function scheduleTimers(subScenario, subState) {
-  for (const timerItem of subScenario.timers) {
-    const id = getNewId()
-    const timeoutRef = setTimeout(function() {
-      executeAction(timerItem.action, subState)
-      delete subState.timeouts[id]
-    }, timerItem.seconds * 1000)
-    subState.timeouts[id] = { ref: timeoutRef, survivor: false }
+  const action = scenario.events[event]
+  if (action) {
+    console.log(`matched action for event ${event}`)
+    executeAction(scenario.events[event])
   }
 } 
 
-function executeAction(action, subState) {
-  if (!(action.type in actionHandlers)) {
+function executeAction(action, callback = () => {}) {
+
+  if (!(action.type in actionSpecs)) {
     console.error(`ERROR: no handler for action of type ${action.type}`)
+    return () => {}
+  }
+
+  const spec = actionSpecs[action.type]
+
+  const actionEval = evaluateAction(action, spec)
+
+  const id = getNewId()
+
+  if (spec.sync) {
+    spec.handler(id, actionEval, null)
+    return () => {}
   }
   else {
-    const id = getNewId()
-    const actionKill = actionHandlers[action.type](action, () => {
-      delete subState.actions[id]
+    let finished = false
+    const actionKill = spec.handler(id, actionEval, () => {
+      delete state.actions[id]
+      finished = true
+      callback()
     })
-    subState.actions[id] = { kill: actionKill, survivor: false }
+    if (!finished) { // in case the callback was called before the returning call
+      state.actions[id] = { actionEval, kill: actionKill }
+    }
+
+    return actionKill
   }
 }
 
-function executeActionAudio(action, callback) {
+function executeActionAudio(id, action, callback) {
 
-  if (!(action.track in scenario.tracks)) {
-    console.log(`ERROR: track ${action.track} is not listed`)
-    return () => {};
-  }
-
-  const path = scenario.tracks[action.track]
+  const path = action.track; // TODO: directory
 
   let audioKill = null;
   let killed = false
@@ -153,42 +126,183 @@ function executeActionAudio(action, callback) {
   }
 }
 
-const actionHandlers = {
-  'audio': executeActionAudio,
-}
+function executeActionSequence(id, action, callback) {
 
-function killAll(subState, force = false) {
-  killAllTimeouts(subState, force)
-  killAllActions(subState, force)
-}
+  let i = -1;
+  let killed = false;
+  let killCurentAction = null;
 
-function killAllTimeouts(subState, force = false) {
-
-  const newTimeouts = []
-  for (const [key, item] of Object.entries(subState.timeouts)) {
-    if (force || !item.survivor) {
-      clearTimeout(item.ref)
+  function executeNext() {
+    i += 1
+    if (killed || i >= action.group.length) {
+      callback()
     }
     else {
-      newTimeouts.push(item)
+      killCurrentAction = executeAction(action.group[i], executeNext)
+      // WARNING: this is tricky
+      if (killCurentAction === null) { // in case next action is sync, null is returned and callback is not called
+        executeNext()
+      }
     }
   }
-  subState.timeouts = newTimeouts
+
+  function kill() {
+    killed = true
+    killCurentAction && killCurrentAction()
+  }
+
+  executeNext()
+
+  return kill
 }
 
-function killAllActions(subState, force = false) {
+function executeActionParallel(id, action, callback) {
 
-  const newActions = []
-  for (const [key, item] of Object.entries(subState.actions)) {
-    if (force || !item.survivor) {
+  for (const child of action.group) {
+    executeAction(child)
+  }
+
+  return null
+}
+
+function executeActionKillAll(id, action, callback) {
+
+  for (const [itemId, item] of Object.entries(state.actions)) {
+    if (itemId != id && !item.actionEval.persist) {
       item.kill && item.kill()
     }
-    else {
-      newActions.push(item)
-    }
   }
-  subState.actions = newActions
+  
+  return null
 }
+
+function executeActionTimer(id, action, callback) {
+
+  const timeoutRef = setTimeout(function() {
+    executeAction(action.action)
+    callback()
+  }, action.seconds * 1000)
+
+  function kill() {
+    clearTimeout(timeoutRef)
+    callback()
+  }
+
+  return kill
+}
+
+function executeActionSuspend(id, action, callback) {
+
+  if (action.suspend) {
+    state.suspendedEvents[action.event] = true
+  }
+  else {
+    delete state.suspendedEvents[action.event]
+  }
+
+  return null
+}
+
+function executeActionEmit(id, action, callback) {
+  setImmediate(() => {
+    emitEvent(action.event)
+  })
+  return null
+}
+
+function executeActionPinInit(id, action, callback) {
+  gpio.init(action.num, action.direction, action.edge)
+}
+
+function executePinMonitor(id, action, callback) {
+
+  const unmonitor = gpio.monitor(action.num, (value) => {
+    if (value === 0) {
+      executeAction(action.low)
+    }
+    else {
+      executeAction(action.high)  
+    }
+  })
+
+  function kill() {
+    console.log("killing gpio monitor")
+    unmonitor()
+    callback()
+  }
+
+  return kill;
+}
+
+function executePinOutput(id, action, callback) {
+  gpio.write(action.num, action.value)  
+}
+
+const commonActionSpec = {
+  defaults: {
+    persist: false
+  }
+}
+
+const actionSpecs = {
+  'killAll': {
+    handler: executeActionKillAll,
+    sync: true,
+  },
+  'audio': {
+    handler: executeActionAudio,
+    sync: false,
+    defaults: {
+      repeat: false
+    },
+    evaluate: ['repeat', 'track']
+  },
+  'sequence': {
+    handler: executeActionSequence,
+    sync: false
+  },
+  'parallel': {
+    handler: executeActionParallel,
+    sync: true
+  },
+  'timer': {
+    handler: executeActionTimer,
+    sync: false,
+    evaluate: ['seconds']
+  },
+  'suspend': {
+    handler: executeActionSuspend,
+    sync: true,
+    defaults: {
+      suspend: true
+    },
+    evaluate: ['suspend', 'event']
+  },
+  'emit': {
+    handler: executeActionEmit,
+    sync: true,
+    evaluate: ['event']
+  },
+  'pinInit': {
+    handler: executeActionPinInit,
+    sync: true,
+    evaluate: ['num', 'direction', 'edge'],
+    defaults: {
+      edge: 'none'
+    }
+  },
+  'pinMonitor': {
+    handler: executePinMonitor,
+    sync: false,
+    evaluate: ['num'],
+  },
+  'pinOutput': {
+    handler: executePinOutput,
+    sync: true,
+    evaluate: ['num', 'value'],
+  }
+}
+
 
 //////////////////////////
 // Start of the program
@@ -199,14 +313,10 @@ function killAllActions(subState, force = false) {
 // Start listening to event
 function setupListeners() {
 
-  // setup busy/idle listeners
-  //    - GPIO
-  //    - HTTP
-
+  // set http event listener
   if (config.httpServer.enabled) {
     httpServer.setup()
-    httpServer.onBusy(() => setState(true))
-    httpServer.onIdle(() => setState(false))
+    httpServer.onEmit(emitEvent)
   }
 }
 setupListeners()
@@ -216,6 +326,12 @@ function start() {
 
   // program all global timers
 
-  schedule(scenario.global, state.global)
+  emitEvent('_START_')
+
+  setInterval(() => {
+    console.log("==============================")
+    console.log(JSON.stringify(state, null, 2))
+    console.log("==============================")
+  }, 1000);
 }
 start()

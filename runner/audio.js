@@ -1,20 +1,19 @@
-const player = require('play-sound')(opts = {})
-
+const { spawn } = require('child_process');
 
 module.exports.play = function(path, callback) {
 
   console.log(`audio: playing ${path}`)
 
-  const audio = player.play(path, function(err){
-    if (err && !err.killed) {
-      console.error(`ERROR: a problem occurred with audio file ${path}`, err)
-    }
+  const process = spawn('aplay', [path], {stdio: 'ignore'})
+
+  process.on('exit', code => {
+    console.log(`aplay finished with code ${code}`)
     callback()
   })
 
   return () => {
     console.log(`audio : killing ${path}`)
-    audio.kill()
+    process.kill('SIGKILL')
   }
 }
 

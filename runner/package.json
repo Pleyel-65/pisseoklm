@@ -11,7 +11,9 @@
   "license": "ISC",
   "dependencies": {
     "express": "^4.17.3",
-    "play-sound": "^1.1.5"
+    "onoff": "^6.0.3",
+    "play-sound": "^1.1.5",
+    "yaml": "^1.10.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.15"

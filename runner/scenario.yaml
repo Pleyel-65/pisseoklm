@@ -1,0 +1,72 @@
+constants:
+  music1: data/music-test1.mp3
+  music2: data/music-test2.mp3
+  music3: data/music-test3.wav
+
+  lockerPinNum: 21
+  lockerPinLowEvent: busy
+  lockerPinHighEvent: idle
+
+  relay1PinNum: 14
+  relay1PinValueBusy: 1
+  relay1PinValueIdle: 0
+
+events:
+
+  _START_:
+    type: sequence
+    group:
+
+    - type: pinInit
+      num: $lockerPinNum
+      direction: in
+      edge: both
+
+    - type: pinInit
+      num: $relay1PinNum
+      direction: out
+
+    - type: pinMonitor
+      num: $lockerPinNum
+      persist: true
+      high:
+        type: emit
+        event: $lockerPinHighEvent
+      low:
+        type: emit
+        event: $lockerPinLowEvent
+
+  busy:
+    type: sequence
+    group:
+    - type: killAll
+    - type: parallel
+      group:
+      - type: suspend
+        event: busy
+        suspend: true
+      - type: suspend
+        event: idle
+        suspend: false
+      - type: audio
+        track: $music3
+      - type: pinOutput
+        num: $relay1PinNum
+        value: $relay1PinValueBusy
+
+  idle:
+    type: sequence
+    group:
+    - type: pinOutput
+      num: $relay1PinNum
+      value: $relay1PinValueIdle
+    - type: killAll
+    - type: parallel
+      group:
+      - type: suspend
+        event: busy
+        suspend: false
+      - type: suspend
+        event: idle
+        suspend: true
+

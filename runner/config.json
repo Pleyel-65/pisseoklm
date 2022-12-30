@@ -1,6 +1,12 @@
 {
+  "scenario": {
+    "path": "scenario.yaml"
+  },
   "httpServer": {
     "enabled": true,
     "port": 3000
+  },
+  "gpio": {
+    "enabled": false
   }
 }
