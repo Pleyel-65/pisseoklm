@@ -35,4 +35,4 @@ sudo apt install sox libsox-fmt-mp3
 
 sudo cp pisseoklm.service /etc/systemd/system/pisseoklm.service
 sudo systemctl daemon-reload
-sudo systemctl enable pissoklm
+sudo systemctl enable pisseoklm

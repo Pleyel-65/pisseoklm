@@ -197,7 +197,8 @@ function executeActionSequence(id, action, callback) {
 function executeActionParallel(id, action, callback) {
 
   for (const child of action.group) {
-    setImmediate(() => executeAction(child))
+    // setImmediate(() => executeAction(child))
+    executeAction(child)
   }
 
   return null
@@ -212,7 +213,8 @@ function executeActionKillAll(id, action, callback) {
   }
 
   if (action.then) {
-    setImmediate(() => executeAction(action.then))
+    //setImmediate(() => executeAction(action.then))
+    executeAction(action.then)
   }
   
   return null
@@ -284,9 +286,10 @@ function executeActionSuspend(id, action, callback) {
 }
 
 function executeActionEmit(id, action, callback) {
-  setImmediate(() => {
-    emitEvent(action.event)
-  })
+  // setImmediate(() => {
+  //   emitEvent(action.event)
+  // })
+  emitEvent(action.event)
   return null
 }
 

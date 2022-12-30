@@ -27,18 +27,22 @@ constants:
     - data/nul-tango/1.mp3
   applause: data/applause.mp3
 
+  claire1m30: data/claire/1m30.mp3
+
   lockerPinNum: 21
   idleLightPinNum: 15
-  aLightPinNum: 14
-  bLightPinNum: 9
-  cLightPinNum: 10
-
+  bubblePinNum: 14
+  redPinNum: 9
+  yellowPinNum: 10
 
   idleOn: 1
   idleOff: 0
-
-  busyOn: 0
-  busyOff: 1
+  bubbleOn: 0
+  bubbleOff: 1
+  redOn: 1
+  redOff: 0
+  yellowOn: 1
+  yellowOff: 0
 
   classicTimeout: 0
   deathTimeout: 0
@@ -57,14 +61,26 @@ events:
       num: $idleLightPinNum
       direction: out
     - type: pinInit
-      num: $aLightPinNum
+      num: $redPinNum
       direction: out
     - type: pinInit
-      num: $bLightPinNum
+      num: $yellowPinNum
       direction: out
     - type: pinInit
-      num: $cLightPinNum
+      num: $bubblePinNum
       direction: out
+    - type: pinOutput
+      num: $idleLightPinNum
+      value: $idleOn
+    - type: pinOutput
+      num: $redPinNum
+      value: $redOff
+    - type: pinOutput
+      num: $yellowPinNum
+      value: $yellowOff
+    - type: pinOutput
+      num: $bubblePinNum
+      value: $bubbleOff
     - type: pinMonitor
       num: $lockerPinNum
       persist: true
@@ -74,7 +90,6 @@ events:
       low:
         type: emit
         event: busy
-
   _STOP_:
     type: sequence
     group:
@@ -82,14 +97,14 @@ events:
       num: $idleLightPinNum
       value: $idleOn
     - type: pinOutput
-      num: $aLightPinNum
-      value: $busyOff
+      num: $redPinNum
+      value: $redOff
     - type: pinOutput
-      num: $bLightPinNum
-      value: $busyOff
+      num: $yellowPinNum
+      value: $yellowOff
     - type: pinOutput
-      num: $cLightPinNum
-      value: $busyOff
+      num: $bubblePinNum
+      value: $bubbleOff
 
   busy:
     type: killAll
@@ -106,14 +121,21 @@ events:
         num: $idleLightPinNum
         value: $idleOff
       - type: pinOutput
-        num: $aLightPinNum
-        value: $busyOn
+        num: $redPinNum
+        value: $redOn
       - type: pinOutput
-        num: $bLightPinNum
-        value: $busyOn
+        num: $yellowPinNum
+        value: $yellowOn
       - type: pinOutput
-        num: $cLightPinNum
-        value: $busyOn
+        num: $bubblePinNum
+        value: $bubbleOff
+      - type: timer
+        seconds: 90
+        action:
+          type: audio
+          track: $claire1m30
+          volume: 0.8
+          repeat: false
       - type: sequence
         group:
         - type: audio
@@ -139,19 +161,19 @@ events:
                     type: sequence
                     group:
                     - type: pinOutput
-                      num: $bLightPinNum
-                      value: $busyOff
+                      num: $redPinNum
+                      value: $redOn
                     - type: pinOutput
-                      num: $cLightPinNum
-                      value: $busyOn
+                      num: $yellowPinNum
+                      value: $yellowOff
                     - type: sleep
                       seconds: 0.5
                     - type: pinOutput
-                      num: $bLightPinNum
-                      value: $busyOn
+                      num: $redPinNum
+                      value: $redOff
                     - type: pinOutput
-                      num: $cLightPinNum
-                      value: $busyOff
+                      num: $yellowPinNum
+                      value: $yellowOn
                     - type: sleep
                       seconds: 0.5
                 - type: sequence
@@ -173,11 +195,39 @@ events:
                           function: randomChoice
                           choices: $nul
                       - type: pinOutput
-                        num: $idleLightPinNum
-                        value: $idleOn
+                        num: $redPinNum
+                        value: $redOff
                       - type: pinOutput
-                        num: $aLightPinNum
-                        value: $busyOff
+                        num: $yellowPinNum
+                        value: $yellowOff
+                      - type: loop
+                        count: infinite
+                        action:
+                          type: sequence
+                          group:
+                          - type: pinOutput
+                            num: $bubblePinNum
+                            value: $bubbleOn
+                          - type: sleep
+                            seconds:
+                              function: randomFloat
+                              min: 0
+                              max: 1
+                          - type: pinOutput
+                            num: $bubblePinNum
+                            value: $bubbleOff
+                          - type: sleep
+                            seconds:
+                              function: randomFloat
+                              min: 0
+                              max: 1
+
+                          
+                      # - type: pinOutput
+                      #   num: $idleLightPinNum
+                      #   value: $idleOn
+
+
 
 
   idle:
@@ -195,13 +245,13 @@ events:
         num: $idleLightPinNum
         value: $idleOn
       - type: pinOutput
-        num: $aLightPinNum
-        value: $busyOff
+        num: $redPinNum
+        value: $redOff
       - type: pinOutput
-        num: $bLightPinNum
-        value: $busyOff
+        num: $yellowPinNum
+        value: $yellowOff
       - type: pinOutput
-        num: $cLightPinNum
-        value: $busyOff
+        num: $bubblePinNum
+        value: $bubbleOff
 
 

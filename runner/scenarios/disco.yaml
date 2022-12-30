@@ -37,6 +37,8 @@ constants:
     - data/porn/03.mp3
     - data/porn/04.mp3
 
+  claire1m30: data/claire/1m30.mp3
+
   lockerPinNum: 21
   idleLightPinNum: 15
   aLightPinNum: 14
@@ -104,6 +106,13 @@ events:
       - type: pinOutput
         num: $aLightPinNum
         value: $busyOn
+      - type: timer
+        seconds: 90
+        action:
+          type: audio
+          track: $claire1m30
+          volume: 1
+          repeat: false
       - type: sequence
         group:
         - type: audio
@@ -153,6 +162,12 @@ events:
     then:
       type: parallel
       group:
+      - type: suspend
+        event: busy
+        suspend: false
+      - type: suspend
+        event: idle
+        suspend: true
       - type: suspend
         event: busy
         suspend: false

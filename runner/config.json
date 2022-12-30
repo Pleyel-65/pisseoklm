@@ -1,6 +1,6 @@
 {
   "scenario": {
-    "path": "scenarios/disco.yaml"
+    "path": "scenarios/tango.yaml"
   },
   "httpServer": {
     "enabled": true,
