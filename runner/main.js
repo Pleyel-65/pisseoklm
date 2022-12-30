@@ -17,11 +17,16 @@ function getNewId() {
   return idCounter.toString()
 }
 
-function evaluateConstant(name) {
-  if (!(name in scenario.constants)) {
-    throw new Error(`ERROR: constant ${name} is not defined`)
+function evaluateConstantOrVariable(name) {
+  if (scenario.variables && name in scenario.variables) {
+    return scenario.variables[name]
   }
-  return scenario.constants[name]
+  else if (scenario.constants && name in scenario.constants) {
+    return scenario.constants[name]
+  }
+  else {
+    throw new Error(`ERROR: constant or variable ${name} is not defined`)
+  }
 }
 
 function evaluateFunction(value) {
@@ -40,7 +45,7 @@ function evaluate(value) {
 
   if (typeof value === 'string') {
     if (value.length > 0 && value[0] === '$') {
-      return evaluate(evaluateConstant(value.substring(1)))
+      return evaluate(evaluateConstantOrVariable(value.substring(1)))
     }
   }
 
@@ -259,6 +264,16 @@ function executeActionLoop(id, action, callback) {
   return kill
 }
 
+function executeActionCondition(id, action, callback) {
+  if (action.if) {
+    executeAction(action.then)
+  }
+  else if (action.else !== null) {
+    executeAction(action.else)
+  }
+  return null
+}
+
 function executeActionSleep(id, action, callback) {
 
   const timeoutRef = setTimeout(function() {
@@ -297,7 +312,7 @@ function executeActionPinInit(id, action, callback) {
   gpio.init(action.num, action.direction, action.edge, action.pull)
 }
 
-function executePinMonitor(id, action, callback) {
+function executeActionPinMonitor(id, action, callback) {
 
   const unmonitor = gpio.monitor(action.num, (value) => {
     if (value === 0) {
@@ -317,8 +332,21 @@ function executePinMonitor(id, action, callback) {
   return kill;
 }
 
-function executePinOutput(id, action, callback) {
+function executeActionPinOutput(id, action, callback) {
   gpio.write(action.num, action.value)  
+}
+
+function executeActionSet(id, action, callback) {
+  if (!scenario.variables) {
+    throw new Error(`ERROR: no variables defined in this scenario`)
+  }
+  
+  if (!action.name in scenario.variables) {
+    throw new Error(`ERROR: variable ${action.name} is not defined`)
+  }
+
+  scenario.variables[action.name] = action.value
+
 }
 
 const commonActionSpec = {
@@ -363,6 +391,14 @@ const actionSpecs = {
     sync: false,
     evaluate: ['count']
   },
+  'condition': {
+    handler: executeActionCondition,
+    sync: true,
+    evaluate: ['if'],
+    defaults: {
+      else: null
+    }
+  },
   'sleep': {
     handler: executeActionSleep,
     sync: false,
@@ -391,14 +427,19 @@ const actionSpecs = {
     }
   },
   'pinMonitor': {
-    handler: executePinMonitor,
+    handler: executeActionPinMonitor,
     sync: false,
     evaluate: ['num'],
   },
   'pinOutput': {
-    handler: executePinOutput,
+    handler: executeActionPinOutput,
     sync: true,
     evaluate: ['num', 'value'],
+  },
+  'set': {
+    handler: executeActionSet,
+    evaluate: ['name', 'value'],
+    sync: true
   }
 }
 
