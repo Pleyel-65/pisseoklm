@@ -14,6 +14,10 @@ module.exports.setup = function() {
     res.send('emitted')
   })
 
+  app.get('/', (req, res) => {
+    res.sendFile(__dirname+'/index.html');
+  })
+
   app.listen(port, () => {
     console.log(`Listening on port ${port}`)
   })

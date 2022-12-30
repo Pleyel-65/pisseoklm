@@ -10,7 +10,7 @@
 # network={
 # scan_ssid=1
 # ssid="Carence de cuivre"
-# psk="BAUERboys98"
+# psk="insert-wifi-password"
 # }
 ####
 
