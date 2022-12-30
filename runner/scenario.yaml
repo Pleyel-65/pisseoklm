@@ -21,6 +21,7 @@ events:
       num: $lockerPinNum
       direction: in
       edge: both
+      pull: up
 
     - type: pinInit
       num: $relay1PinNum
@@ -57,9 +58,6 @@ events:
   idle:
     type: sequence
     group:
-    - type: pinOutput
-      num: $relay1PinNum
-      value: $relay1PinValueIdle
     - type: killAll
     - type: parallel
       group:
@@ -69,4 +67,7 @@ events:
       - type: suspend
         event: idle
         suspend: true
+      - type: pinOutput
+        num: $relay1PinNum
+        value: $relay1PinValueIdle
 

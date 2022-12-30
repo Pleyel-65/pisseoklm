@@ -1,14 +1,33 @@
 const Gpio = require('onoff').Gpio;
+const { spawnSync } = require('child_process');
 
-const pins = {}
+let pins = {}
 
-module.exports.init = function(num, direction, edge) {
+const pullValues = {
+  'up': 'pu',
+  'down': 'pd',
+  'none': 'pn'
+}
+
+module.exports.init = function(num, direction, edge, pull) {
   if (num in pins) {
-    console.error(`ERROR: pin ${num} already initialized`)
-    return ;
+    throw new Error(`ERROR: pin ${num} already initialized`)
   }
 
-  console.log(num, direction, edge)
+  if (pull !== null) {
+
+    if (!(pull in pullValues)) {
+      throw new Error(`ERROR: pin pull value ${pull} is not correct, should be one of ${Object.keys(pullValues).join(', ')}`)
+    }
+
+    const ret = spawnSync('raspi-gpio', ['set', num, pullValues[pull]])
+
+    if (ret.status !== 0) {
+      console.log(ret.stdout.toString(), ret.stderr.toString())
+      throw new Error(`ERROR: can't initalizing pin ${num} with pulling ${pull}, returned ${ret}`)
+    }
+  }
+
   pins[num] = new Gpio(num, direction, edge);
 }
 

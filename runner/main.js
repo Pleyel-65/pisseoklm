@@ -211,7 +211,7 @@ function executeActionEmit(id, action, callback) {
 }
 
 function executeActionPinInit(id, action, callback) {
-  gpio.init(action.num, action.direction, action.edge)
+  gpio.init(action.num, action.direction, action.edge, action.pull)
 }
 
 function executePinMonitor(id, action, callback) {
@@ -286,9 +286,10 @@ const actionSpecs = {
   'pinInit': {
     handler: executeActionPinInit,
     sync: true,
-    evaluate: ['num', 'direction', 'edge'],
+    evaluate: ['num', 'direction', 'edge', 'pull'],
     defaults: {
-      edge: 'none'
+      edge: 'none',
+      pull: null
     }
   },
   'pinMonitor': {
