@@ -18,8 +18,8 @@ function getNewId() {
 }
 
 function evaluateConstantOrVariable(name) {
-  if (scenario.variables && name in scenario.variables) {
-    return scenario.variables[name]
+  if (name in state.variables) {
+    return state.variables[name]
   }
   else if (scenario.constants && name in scenario.constants) {
     return scenario.constants[name]
@@ -80,7 +80,9 @@ let state = {
   timeouts: {},
   actions: {},
 
-  suspendedEvents: {}
+  suspendedEvents: {},
+
+  variables: scenario.variables
 }
 
 function emitEvent(event, callback = () => {}) {
@@ -99,6 +101,10 @@ function emitEvent(event, callback = () => {}) {
 } 
 
 function executeAction(action, callback = () => {}) {
+
+  if (config.debug) {
+    console.debug("DEBUG: executing action", action)
+  }
 
   if (!(action.type in actionSpecs)) {
     console.error(`ERROR: no handler for action of type ${action.type}`)
@@ -201,6 +207,8 @@ function executeActionSequence(id, action, callback) {
 
 function executeActionParallel(id, action, callback) {
 
+  // warning: parallel does not wait for sub actions to complete.
+
   for (const child of action.group) {
     // setImmediate(() => executeAction(child))
     executeAction(child)
@@ -210,6 +218,8 @@ function executeActionParallel(id, action, callback) {
 }
 
 function executeActionKillAll(id, action, callback) {
+
+  // warning: killAll does not wait for sub action to complete.
 
   for (const [itemId, item] of Object.entries(state.actions)) {
     if (itemId != id && !item.actionEval.persist) {
@@ -225,11 +235,20 @@ function executeActionKillAll(id, action, callback) {
   return null
 }
 
+function executeActionKillTag(id, action, callback) {
+  for (const [itemId, item] of Object.entries(state.actions)) {
+    if (itemId != id && item.actionEval.tags.includes(action.target)) {
+      item.kill && item.kill()
+    }
+  }
+
+  return null
+}
+
 function executeActionTimer(id, action, callback) {
 
   const timeoutRef = setTimeout(function() {
-    executeAction(action.action)
-    callback()
+    executeAction(action.action, callback)
   }, action.seconds * 1000)
 
   function kill() {
@@ -266,10 +285,10 @@ function executeActionLoop(id, action, callback) {
 
 function executeActionCondition(id, action, callback) {
   if (action.if) {
-    executeAction(action.then)
+    executeAction(action.then, callback)
   }
   else if (action.else !== null) {
-    executeAction(action.else)
+    executeAction(action.else, callback)
   }
   return null
 }
@@ -337,21 +356,18 @@ function executeActionPinOutput(id, action, callback) {
 }
 
 function executeActionSet(id, action, callback) {
-  if (!scenario.variables) {
-    throw new Error(`ERROR: no variables defined in this scenario`)
-  }
-  
-  if (!action.name in scenario.variables) {
+  if (!action.name in state.variables) {
     throw new Error(`ERROR: variable ${action.name} is not defined`)
   }
 
-  scenario.variables[action.name] = action.value
+  state.variables[action.name] = action.value
 
 }
 
 const commonActionSpec = {
   defaults: {
-    persist: false
+    persist: false,
+    tags: []
   }
 }
 
@@ -359,6 +375,11 @@ const actionSpecs = {
   'killAll': {
     handler: executeActionKillAll,
     sync: true,
+  },
+  'killTag': {
+    handler: executeActionKillTag,
+    sync: true,
+    evaluate: ['target']
   },
   'audio': {
     handler: executeActionAudio,
@@ -393,7 +414,7 @@ const actionSpecs = {
   },
   'condition': {
     handler: executeActionCondition,
-    sync: true,
+    sync: false,
     evaluate: ['if'],
     defaults: {
       else: null
@@ -468,6 +489,30 @@ function executeFunctionAnd(functionEval) {
   return functionEval.args.every(item => item && true)
 }
 
+function executeFunctionNot(functionEval) {
+  return !functionEval.value;
+}
+
+function executeFunctionEq(functionEval) {
+  return functionEval.a === functionEval.b
+}
+
+function executeFunctionIn(functionEval) {
+  return functionEval.array.includes(functionEval.value)  
+}
+
+function executeFunctionAdd(functionEval) {
+  return functionEval.a + functionEval.b
+}
+
+function executeFunctionAt(functionEval) {
+  return functionEval.object[functionEval.key]
+}
+
+function executeFunctionLen(functionEval) {
+  return functionEval.array.length
+}
+
 const functionSpecs = {
   'randomChoice': {
     handler: executeFunctionRandomChoice,
@@ -497,8 +542,31 @@ const functionSpecs = {
   'and': {
     handler: executeFunctionAnd,
     evaluate: ['args']
+  },
+  'not': {
+    handler: executeFunctionNot,
+    evaluate: ['value']
+  },
+  'eq': {
+    handler: executeFunctionEq,
+    evaluate: ['a', 'b']
+  },
+  'in': {
+    handler: executeFunctionIn,
+    evaluate: ['value', 'array']
+  },
+  'add': {
+    handler: executeFunctionAdd,
+    evaluate: ['a', 'b']
+  },
+  'at': {
+    handler: executeFunctionAt,
+    evaluate: ['object', 'key']
+  },
+  'len': {
+    handler: executeFunctionLen,
+    evaluate: ['array']
   }
-
 }
 
 //////////////////////////

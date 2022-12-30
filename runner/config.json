@@ -1,9 +1,10 @@
 {
   "scenario": {
-    "path": "scenarios/tango.yaml"
+    "path": "scenarios/noel.yaml"
   },
   "httpServer": {
     "enabled": true,
     "port": 3000
-  }
+  },
+  "debug": true
 }
