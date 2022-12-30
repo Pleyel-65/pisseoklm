@@ -1,13 +1,22 @@
 constants:
-  music1: data/music-test1.mp3
-  music2: data/music-test2.mp3
-  music3: data/music-test3.wav
-
-  rock:
-    - $music1
-    - $music2
-    - $music3
-
+  tangoClassic:
+    - data/tango-classic-1.mp3
+  tangoCrade:
+    - data/tango-crade-1.mp3
+    - data/tango-crade-2.mp3
+  voix:
+    - data/voix-1.mp3
+  proutes:
+    - data/proutes/1.mp3
+    - data/proutes/2.mp3
+    - data/proutes/3.mp3
+    - data/proutes/4.mp3
+    - data/proutes/5.mp3
+    - data/proutes/6.mp3
+    - data/proutes/7.mp3
+    - data/proutes/8.mp3
+    - data/proutes/9.mp3
+    - data/proutes/10.mp3
 
   lockerPinNum: 21
   lockerPinLowEvent: busy
@@ -26,7 +35,6 @@ events:
   _START_:
     type: sequence
     group:
-
     - type: pinInit
       num: $lockerPinNum
       direction: in
@@ -34,9 +42,17 @@ events:
       pull: up
 
     - type: pinInit
-      num: $relay1PinNum
+      num: 14
       direction: out
-
+    - type: pinInit
+      num: 15
+      direction: out
+    - type: suspend
+      event: busy
+      suspend: false
+    - type: suspend
+      event: idle
+      suspend: true
     - type: pinMonitor
       num: $lockerPinNum
       persist: true
@@ -47,49 +63,82 @@ events:
         type: emit
         event: $lockerPinLowEvent
 
-  busy:
-    type: sequence
-    group:
-    - type: killAll
-    - type: parallel
-      group:
-      - type: suspend
-        event: busy
-        suspend: true
-      - type: suspend
-        event: idle
-        suspend: false
 
-      - type: loop
-        count: infinite
-        action:
-          type: sequence
-          group:
-          - type: pinOutput
-            num: $relay1PinNum
-            value:
-              function: randomInt
-              min: 0
-              max: 1
-          - type: sleep
-            seconds:
-              function: randomFloat
-              min: 0.1
-              max: 0.25
+  busy:
+    type: killAll
+    then:
+      type: sequence
+      group:
+      - type: parallel
+        group:
+        - type: suspend
+          event: busy
+          suspend: true
+        - type: suspend
+          event: idle
+          suspend: false
+        - type: pinOutput
+          num: 14
+          value: 1
+        - type: pinOutput
+          num: 15
+          value: 1
+        - type: audio
+          track:
+            function: randomChoice
+            choices: $tangoClassic
+          repeat: false
+          timeout: 10
+        - type: timer
+          seconds: 10
+          action:
+            type: sequence
+            group:
+            - type: audio
+              track:
+                function: randomChoice
+                choices: $voix
+              repeat: false
+            - type: audio
+              track:
+                function: randomChoice
+                choices: $tangoCrade
+              repeat: false
+        - type: loop
+          count: 'infinite'
+          action:
+            type: sequence
+            group:
+              - type: sleep
+                seconds:
+                  function: randomInt
+                  min: 2
+                  max: 10
+              - type: audio
+                repeat: false
+                track:
+                  function: randomChoice
+                  choices: $proutes
+                volume: 2
 
   idle:
-    type: sequence
-    group:
-    - type: killAll
-    - type: parallel
+    type: killAll
+    then:
+      type: sequence
       group:
-      - type: suspend
-        event: busy
-        suspend: false
-      - type: suspend
-        event: idle
-        suspend: true
+      - type: parallel
+        group:
+        - type: suspend
+          event: busy
+          suspend: false
+        - type: suspend
+          event: idle
+          suspend: true
       - type: pinOutput
-        num: $relay1PinNum
-        value: $relay1PinValueIdle
+        num: 14
+        value: 0
+      - type: pinOutput
+        num: 15
+        value: 0
+
 

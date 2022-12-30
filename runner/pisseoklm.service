@@ -1,0 +1,18 @@
+[Unit]
+Description=PisseOKLM
+After=network.target
+
+[Service]
+WorkingDirectory=/home/pi/pisseoklm/runner
+
+ExecStart=/usr/local/bin/node main.js
+Restart=on-failure
+RestartSec=500ms
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=pisseoklm
+User=pi
+Group=pi
+
+[Install]
+WantedBy=multi-user.target

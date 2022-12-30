@@ -64,11 +64,10 @@ module.exports.write = function(num, value) {
   pin.writeSync(value)
 }
 
-process.on('SIGINT', _ => {
+module.exports.cleanup = function() {
   console.log("gpio : cleaning up before shutdown...")
   for (const [num, pin] of Object.entries(pins)) {
     pin.unexport()
   }
   pins = {}
-  process.exit();
-});
+}

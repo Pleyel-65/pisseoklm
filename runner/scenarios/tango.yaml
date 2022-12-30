@@ -1,0 +1,207 @@
+constants:
+  classic:
+    - data/classic-tango/1.mp3
+    - data/classic-tango/2.mp3
+    - data/classic-tango/3.mp3
+    - data/classic-tango/4.mp3
+    - data/classic-tango/5.mp3
+    - data/classic-tango/6.mp3
+    - data/classic-tango/7.mp3
+    - data/classic-tango/8.mp3
+    - data/classic-tango/9.mp3
+    - data/classic-tango/10.mp3
+    - data/classic-tango/11.mp3
+  death:
+    - data/death-tango/1.mp3
+    - data/death-tango/2.mp3
+    - data/death-tango/3.mp3
+    - data/death-tango/4.mp3
+    - data/death-tango/5.mp3
+    - data/death-tango/6.mp3
+    - data/death-tango/7.mp3
+    - data/death-tango/8.mp3
+    - data/death-tango/9.mp3
+    - data/death-tango/10.mp3
+    - data/death-tango/11.mp3
+  nul:
+    - data/nul-tango/1.mp3
+  applause: data/applause.mp3
+
+  lockerPinNum: 21
+  idleLightPinNum: 15
+  aLightPinNum: 14
+  bLightPinNum: 9
+  cLightPinNum: 10
+
+
+  idleOn: 1
+  idleOff: 0
+
+  busyOn: 0
+  busyOff: 1
+
+  classicTimeout: 0
+  deathTimeout: 0
+
+events:
+
+  _START_:
+    type: sequence
+    group:
+    - type: pinInit
+      num: $lockerPinNum
+      direction: in
+      edge: both
+      pull: up
+    - type: pinInit
+      num: $idleLightPinNum
+      direction: out
+    - type: pinInit
+      num: $aLightPinNum
+      direction: out
+    - type: pinInit
+      num: $bLightPinNum
+      direction: out
+    - type: pinInit
+      num: $cLightPinNum
+      direction: out
+    - type: pinMonitor
+      num: $lockerPinNum
+      persist: true
+      high:
+        type: emit
+        event: idle
+      low:
+        type: emit
+        event: busy
+
+  _STOP_:
+    type: sequence
+    group:
+    - type: pinOutput
+      num: $idleLightPinNum
+      value: $idleOn
+    - type: pinOutput
+      num: $aLightPinNum
+      value: $busyOff
+    - type: pinOutput
+      num: $bLightPinNum
+      value: $busyOff
+    - type: pinOutput
+      num: $cLightPinNum
+      value: $busyOff
+
+  busy:
+    type: killAll
+    then:
+      type: parallel
+      group:
+      - type: suspend
+        event: busy
+        suspend: true
+      - type: suspend
+        event: idle
+        suspend: false
+      - type: pinOutput
+        num: $idleLightPinNum
+        value: $idleOff
+      - type: pinOutput
+        num: $aLightPinNum
+        value: $busyOn
+      - type: pinOutput
+        num: $bLightPinNum
+        value: $busyOn
+      - type: pinOutput
+        num: $cLightPinNum
+        value: $busyOn
+      - type: sequence
+        group:
+        - type: audio
+          repeat: false
+          track:
+            function: randomChoice
+            choices: $classic
+          timeout: $classicTimeout
+          crossOverSeconds: -3
+          crossOverAction:
+            type: parallel
+            group:
+            - type: audio
+              repeat: false
+              track: $applause
+              extraArgs: ["fade", "2", "15", "5"]
+              crossOverSeconds: 5
+              crossOverAction: 
+                type: parallel
+                group:
+                - type: loop
+                  action:
+                    type: sequence
+                    group:
+                    - type: pinOutput
+                      num: $bLightPinNum
+                      value: $busyOff
+                    - type: pinOutput
+                      num: $cLightPinNum
+                      value: $busyOn
+                    - type: sleep
+                      seconds: 0.5
+                    - type: pinOutput
+                      num: $bLightPinNum
+                      value: $busyOn
+                    - type: pinOutput
+                      num: $cLightPinNum
+                      value: $busyOff
+                    - type: sleep
+                      seconds: 0.5
+                - type: sequence
+                  group:
+                  - type: audio
+                    repeat: false
+                    timeout: $deathTimeout
+                    track:
+                      function: randomChoice
+                      choices: $death
+                  - type: killAll
+                    then:
+                      type: parallel
+                      group:
+                      - type: audio
+                        repeat: true
+                        timeout: 0
+                        track:
+                          function: randomChoice
+                          choices: $nul
+                      - type: pinOutput
+                        num: $idleLightPinNum
+                        value: $idleOn
+                      - type: pinOutput
+                        num: $aLightPinNum
+                        value: $busyOff
+
+
+  idle:
+    type: killAll
+    then:
+      type: parallel
+      group:
+      - type: suspend
+        event: busy
+        suspend: false
+      - type: suspend
+        event: idle
+        suspend: true
+      - type: pinOutput
+        num: $idleLightPinNum
+        value: $idleOn
+      - type: pinOutput
+        num: $aLightPinNum
+        value: $busyOff
+      - type: pinOutput
+        num: $bLightPinNum
+        value: $busyOff
+      - type: pinOutput
+        num: $cLightPinNum
+        value: $busyOff
+
+

@@ -1,0 +1,169 @@
+constants:
+  disco:
+    - data/disco/1.mp3
+    - data/disco/2.mp3
+    - data/disco/3.mp3
+    - data/disco/4.mp3
+    - data/disco/5.mp3
+    - data/disco/6.mp3
+    - data/disco/7.mp3
+    - data/disco/8.mp3
+    - data/disco/9.mp3
+    - data/disco/10.mp3
+    - data/disco/11.mp3
+    - data/disco/12.mp3
+    - data/disco/13.mp3
+    - data/disco/14.mp3
+    - data/disco/15.mp3
+    - data/disco/16.mp3
+    - data/disco/17.mp3
+    - data/disco/18.mp3
+
+  proutes:
+    - data/proutes/1.mp3
+    - data/proutes/2.mp3
+    - data/proutes/3.mp3
+    - data/proutes/4.mp3
+    - data/proutes/5.mp3
+    - data/proutes/6.mp3
+    - data/proutes/7.mp3
+    - data/proutes/8.mp3
+    - data/proutes/9.mp3
+    - data/proutes/10.mp3
+
+  porn:
+    - data/porn/01.mp3
+    - data/porn/02.mp3
+    - data/porn/03.mp3
+    - data/porn/04.mp3
+
+  lockerPinNum: 21
+  idleLightPinNum: 15
+  aLightPinNum: 14
+
+  idleOn: 1
+  idleOff: 0
+
+  busyOn: 0
+  busyOff: 1
+
+  discoTimeout: 0
+  proutesStart: 120
+  pornStart: 240
+
+events:
+
+  _START_:
+    type: sequence
+    group:
+    - type: pinInit
+      num: $lockerPinNum
+      direction: in
+      edge: both
+      pull: up
+    - type: pinInit
+      num: $idleLightPinNum
+      direction: out
+    - type: pinInit
+      num: $aLightPinNum
+      direction: out
+    - type: pinMonitor
+      num: $lockerPinNum
+      persist: true
+      high:
+        type: emit
+        event: idle
+      low:
+        type: emit
+        event: busy
+
+  _STOP_:
+    type: sequence
+    group:
+    - type: pinOutput
+      num: $idleLightPinNum
+      value: $idleOn
+    - type: pinOutput
+      num: $aLightPinNum
+      value: $busyOff
+
+  busy:
+    type: killAll
+    then:
+      type: parallel
+      group:
+      - type: suspend
+        event: busy
+        suspend: true
+      - type: suspend
+        event: idle
+        suspend: false
+      - type: pinOutput
+        num: $idleLightPinNum
+        value: $idleOff
+      - type: pinOutput
+        num: $aLightPinNum
+        value: $busyOn
+      - type: sequence
+        group:
+        - type: audio
+          repeat: false
+          track:
+            function: randomChoice
+            choices: $disco
+          timeout: $discoTimeout
+        - type: pinOutput
+          num: $idleLightPinNum
+          value: $idleOn
+        - type: pinOutput
+          num: $aLightPinNum
+          value: $busyOff
+      - type: timer
+        seconds: $proutesStart
+        action:
+          type: loop
+          count: infinite
+          action:
+            type: sequence
+            group:
+              - type: sleep
+                seconds:
+                  function: randomInt
+                  min: 5
+                  max: 10
+              - type: audio
+                repeat: false
+                volume: 1.5
+                track:
+                  function: randomChoice
+                  choices: $proutes
+      - type: timer
+        seconds: $pornStart
+        action:
+          type: killAll
+          then:
+            type: audio
+            repeat: false
+            track:
+              function: randomChoice
+              choices: $porn
+
+  idle:
+    type: killAll
+    then:
+      type: parallel
+      group:
+      - type: suspend
+        event: busy
+        suspend: false
+      - type: suspend
+        event: idle
+        suspend: true
+      - type: pinOutput
+        num: $idleLightPinNum
+        value: $idleOn
+      - type: pinOutput
+        num: $aLightPinNum
+        value: $busyOff
+
+

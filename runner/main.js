@@ -1,9 +1,12 @@
 const fs = require('fs');
 const YAML = require('yaml')
+const { getAudioDurationInSeconds } = require('get-audio-duration')
 const config = require('./config.json')
 const httpServer = require('./httpServer.js')
 const audio = require('./audio.js');
 const gpio = require('./gpio.js')
+
+
 
 let idCounter = 0
 function getNewId() {
@@ -75,7 +78,7 @@ let state = {
   suspendedEvents: {}
 }
 
-function emitEvent(event) {
+function emitEvent(event, callback = () => {}) {
   console.log(`event ${event} emitted`)
 
   if (event in state.suspendedEvents) {
@@ -86,7 +89,7 @@ function emitEvent(event) {
   const action = scenario.events[event]
   if (action) {
     console.log(`matched action for event ${event}`)
-    executeAction(scenario.events[event])
+    executeAction(scenario.events[event], callback)
   }
 } 
 
@@ -123,6 +126,7 @@ function executeAction(action, callback = () => {}) {
   }
 }
 
+
 function executeActionAudio(id, action, callback) {
 
   const path = action.track; // TODO: directory
@@ -130,7 +134,9 @@ function executeActionAudio(id, action, callback) {
   let audioKill = null;
   let killed = false
   function audioPlay() {
-    audioKill = audio.play(path, action.volume, () => {
+    const opts = { volume: action.volume, timeout: action.timeout, extraArgs: action.extraArgs }
+
+    audioKill = audio.play(path, opts, () => {
       if (action.repeat && !killed) {
         audioPlay()
       }
@@ -141,6 +147,23 @@ function executeActionAudio(id, action, callback) {
   }
 
   audioPlay()
+
+  // crossOver experimentation
+  if (action.crossOverAction !== null) {
+    getAudioDurationInSeconds(path).then((duration) => {
+
+      if (action.timeout > 0) {
+        duration = Math.min(duration, action.timeout)
+      }
+
+      executeAction({
+        type: "timer",
+        action: action.crossOverAction,
+        seconds: action.crossOverSeconds > 0 ? action.crossOverSeconds : duration + action.crossOverSeconds
+      })
+    })
+  }
+
   return () => {
     killed = true;
     audioKill && audioKill()
@@ -311,9 +334,13 @@ const actionSpecs = {
     sync: false,
     defaults: {
       repeat: false,
-      volume: 1
+      volume: 1,
+      timeout: 0,
+      extraArgs: [],
+      crossOverAction: null,
+      crossOverSeconds: -1,
     },
-    evaluate: ['repeat', 'track', 'volume']
+    evaluate: ['repeat', 'track', 'volume', 'timeout', 'extraArgs', 'crossOver', 'crossOverSeconds']
   },
   'sequence': {
     handler: executeActionSequence,
@@ -442,4 +469,17 @@ function start() {
     console.log("==============================")
   }, 1000);
 }
+
+function stop() {
+  console.log("SIGINT received, emit _STOP_ event")
+  emitEvent('_STOP_', () => {
+    gpio.cleanup()
+    process.exit()
+  })
+}
+process.on('exit', stop);
+process.on('SIGINT', stop);
+process.on('SIGUSR1', stop);
+process.on('SIGUSR2', stop);
+
 start()

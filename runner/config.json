@@ -1,12 +1,9 @@
 {
   "scenario": {
-    "path": "scenario.yaml"
+    "path": "scenarios/disco.yaml"
   },
   "httpServer": {
     "enabled": true,
     "port": 3000
-  },
-  "gpio": {
-    "enabled": false
   }
 }
