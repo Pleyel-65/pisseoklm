@@ -130,7 +130,7 @@ function executeActionAudio(id, action, callback) {
   let audioKill = null;
   let killed = false
   function audioPlay() {
-    audioKill = audio.play(path, () => {
+    audioKill = audio.play(path, action.volume, () => {
       if (action.repeat && !killed) {
         audioPlay()
       }
@@ -166,7 +166,7 @@ function executeActionSequence(id, action, callback) {
     killed = true
   }
 
-  executeNext()
+  setImmediate(executeNext)
 
   return kill
 }
@@ -174,7 +174,7 @@ function executeActionSequence(id, action, callback) {
 function executeActionParallel(id, action, callback) {
 
   for (const child of action.group) {
-    executeAction(child)
+    setImmediate(() => executeAction(child))
   }
 
   return null
@@ -186,6 +186,10 @@ function executeActionKillAll(id, action, callback) {
     if (itemId != id && !item.actionEval.persist) {
       item.kill && item.kill()
     }
+  }
+
+  if (action.then) {
+    setImmediate(() => executeAction(action.then))
   }
   
   return null
@@ -225,7 +229,7 @@ function executeActionLoop(id, action, callback) {
     killed = true
   }
 
-  executeNext()
+  setImmediate(executeNext)
 
   return kill
 }
@@ -306,9 +310,10 @@ const actionSpecs = {
     handler: executeActionAudio,
     sync: false,
     defaults: {
-      repeat: false
+      repeat: false,
+      volume: 1
     },
-    evaluate: ['repeat', 'track']
+    evaluate: ['repeat', 'track', 'volume']
   },
   'sequence': {
     handler: executeActionSequence,
