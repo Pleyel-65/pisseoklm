@@ -9,7 +9,7 @@ const pullValues = {
   'none': 'pn'
 }
 
-module.exports.init = function(num, direction, edge, pull) {
+module.exports.init = function(num, direction, edge, pull, debounceTimeout) {
   if (num in pins) {
     throw new Error(`ERROR: pin ${num} already initialized`)
   }
@@ -28,7 +28,7 @@ module.exports.init = function(num, direction, edge, pull) {
     }
   }
 
-  pins[num] = new Gpio(num, direction, edge);
+  pins[num] = new Gpio(num, direction, edge, {debounceTimeout: debounceTimeout});
 }
 
 module.exports.monitor = function(num, callback) {
