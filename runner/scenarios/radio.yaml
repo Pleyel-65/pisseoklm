@@ -1,0 +1,66 @@
+constants:
+  track: data/disco/1.mp3
+
+variables:
+  state: idle
+
+events:
+
+  _START_:
+    type: sequence
+    group:
+    - type: radioTurnOn
+      pinCE: 25
+      irq: 24
+      debug: true
+      payloadSize: 32
+    - type: radioListen
+      persist: true
+      origin: any
+      subject: any
+      as: _value
+      action:
+        type: condition
+        if: true
+        then:
+          type: emit
+          event: buttonPress
+
+  _STOP_:
+    type: killAll
+    then:
+      type: radioTurnOff
+
+  buttonPress:
+    type: condition
+    if:
+      function: eq
+      a: $state
+      b: idle
+    then:
+      type: emit
+      event: busy
+    else:
+      type: emit
+      event: idle
+
+  busy:
+    type: killAll
+    then:
+      type: parallel
+      group:
+      - type: set
+        name: state
+        value: busy
+      - type: audio
+        repeat: false
+        track: $track
+  
+  idle:
+    type: killAll
+    then:
+      type: parallel
+      group:
+      - type: set
+        name: state
+        value: idle

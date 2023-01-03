@@ -5,6 +5,7 @@ const config = require('./config.json')
 const httpServer = require('./httpServer.js')
 const audio = require('./audio.js');
 const gpio = require('./gpio.js')
+const radio = require('./radio.js')
 
 
 
@@ -219,8 +220,6 @@ function executeActionParallel(id, action, callback) {
 
 function executeActionKillAll(id, action, callback) {
 
-  // warning: killAll does not wait for sub action to complete.
-
   for (const [itemId, item] of Object.entries(state.actions)) {
     if (itemId != id && !item.actionEval.persist) {
       item.kill && item.kill()
@@ -229,7 +228,7 @@ function executeActionKillAll(id, action, callback) {
 
   if (action.then) {
     //setImmediate(() => executeAction(action.then))
-    executeAction(action.then)
+    executeAction(action.then, callback)
   }
   
   return null
@@ -364,6 +363,41 @@ function executeActionSet(id, action, callback) {
 
 }
 
+function executeRadioTurnOn(id, action, callback) {
+  radio.turnOn({
+    addr: action.addr,
+    csn: action.csn,
+    pinCE: action.pinCE,
+    pinIRQ: action.pinIRQ,
+    paLevel: action.paLevel,
+    dataRate: action.dataRate,
+    enableLna: action.enableLna,
+    channel: action.channel,
+    autoAck: action.autoAck,
+    payloadSize: action.payloadSize,
+    debug: action.debug
+  })
+}
+
+function executeRadioTurnOff(id, action, callback) {
+  radio.turnOff()
+}
+
+function executeRadioListen(id, action, callback) {
+  const removeListener = radio.listen(action.origin, action.subject, (value) => {
+    // TODO: set local scope _value
+    executeAction(action.action)
+  })
+
+  function kill() {
+    console.debug("killing radio listen")
+    removeListener()
+    callback()
+  }
+
+  return kill;
+}
+
 const commonActionSpec = {
   defaults: {
     persist: false,
@@ -374,7 +408,7 @@ const commonActionSpec = {
 const actionSpecs = {
   'killAll': {
     handler: executeActionKillAll,
-    sync: true,
+    sync: false,
   },
   'killTag': {
     handler: executeActionKillTag,
@@ -462,6 +496,38 @@ const actionSpecs = {
     handler: executeActionSet,
     evaluate: ['name', 'value'],
     sync: true
+  },
+  'radioTurnOn': {
+    handler: executeRadioTurnOn,
+    evaluate: ['addr', 'pinCE', 'csn', 'pinIRQ', 'paLevel', 'dataRate', 'enableLna', 'channel', 'autoAck', 'payloadSize'],
+    sync: true,
+    defaults: {
+      addr: "0x4242424242", // nrf24 addr of the runner
+      csn: 0, // spi interface 0 or 1 on the RPI
+      pinCE: 25, // any GPIO
+      pinIRQ: -1,
+      paLevel: 'min', // in ['min', 'low', 'high', 'max']
+      dataRate: '1mbs', // in ['1mbs', '2mbs', '250kbs']
+      enableLna: false, // enable amplifier if present
+      channel: 76,
+      autoAck: true,
+      payloadSize: 32,
+      debug: false
+    }
+  },
+  'radioTurnOff': {
+    handler: executeRadioTurnOff,
+    sync: true
+  },
+  'radioListen': {
+    handler: executeRadioListen,
+    sync: false,
+    evaluate: ['origin', 'subject'],
+    defaults: {
+      origin: 'any',
+      subject: 'any',
+      as: '_value',
+    }
   }
 }
 
@@ -597,19 +663,23 @@ function start() {
     console.log("==============================")
     console.log(JSON.stringify(state, null, 2))
     console.log("==============================")
-  }, 1000);
+  }, 10000);
 }
 
 function stop() {
-  console.log("SIGINT received, emit _STOP_ event")
+  console.log("will quit, emit _STOP_ event")
   emitEvent('_STOP_', () => {
     gpio.cleanup()
-    process.exit()
+    radio.cleanup()
   })
 }
 process.on('exit', stop);
-process.on('SIGINT', stop);
-process.on('SIGUSR1', stop);
-process.on('SIGUSR2', stop);
+process.on('SIGINT', () => process.exit());
+process.on('SIGUSR1', () => process.exit());
+process.on('SIGUSR2', () => process.exit());
+process.on("uncaughtException", err => {
+  console.error(err);
+  () => process.exit()
+});
 
 start()

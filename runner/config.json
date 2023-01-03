@@ -1,6 +1,6 @@
 {
   "scenario": {
-    "path": "scenarios/noel.yaml"
+    "path": "scenarios/radio.yaml"
   },
   "httpServer": {
     "enabled": true,
