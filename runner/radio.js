@@ -28,7 +28,7 @@ let listenerNextId = 0;
 const listenersIndex = {}
 
 function safeGetValue(values, key) {
-  if (!values.hasOwnProperty(key)) {
+  if (!(key in values)) {
     throw new Error(`${key} not found in ${values}`)
   }
   return values[key]
@@ -76,11 +76,11 @@ function addListenerInIndex(listener) {
 
   const { origin, subject} = listener;
 
-  if (!listenersIndex.hasOwnProperty(origin)) {
+  if (!(origin in listenersIndex)) {
     listenersIndex[origin] = {}
   }
 
-  if (!listenersIndex[origin].hasOwnProperty(subject)) {
+  if (!(subject in listenersIndex[origin])) {
     listenersIndex[origin][subject] = []
   }
 
@@ -97,8 +97,8 @@ function findListeners(origin, subject) {
   const results = []
 
   function _find(origin, subject) {
-    if (listenersIndex.hasOwnProperty(origin)) {
-      if (listenersIndex[origin].hasOwnProperty(subject)) {
+    if (origin in listenersIndex) {
+      if (subject in listenersIndex[origin]) {
         results.push(...listenersIndex[origin][subject])
       }
     }
