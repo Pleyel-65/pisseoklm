@@ -170,7 +170,7 @@ function onDataReceived(data, n) {
     if (state.opts.debug) {
       console.debug(`radio received data : ${JSON.stringify(message)}. Found ${listeners.length} listeners.`)
     }
-    listeners.forEach(l => l.callback())
+    listeners.forEach(l => l.callback(message.value))
   })
 }
 

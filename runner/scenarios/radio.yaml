@@ -21,7 +21,7 @@ events:
       as: _value
       action:
         type: condition
-        if: true
+        if: $_value
         then:
           type: emit
           event: buttonPress

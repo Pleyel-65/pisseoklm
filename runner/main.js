@@ -18,54 +18,57 @@ function getNewId() {
   return idCounter.toString()
 }
 
-function evaluateConstantOrVariable(name) {
-  if (name in state.variables) {
+function evaluateConstantOrVariable(name, scope) {
+  if (name in scope) { // local variables
+    return scope[name]
+  }
+  if (name in state.variables) { // global variables
     return state.variables[name]
   }
-  else if (scenario.constants && name in scenario.constants) {
+  else if (scenario.constants && name in scenario.constants) { // global constants
     return scenario.constants[name]
   }
   else {
-    throw new Error(`ERROR: constant or variable ${name} is not defined`)
+    throw new Error(`constant or variable ${name} is not defined`)
   }
 }
 
-function evaluateFunction(value) {
+function evaluateFunction(value, scope) {
   if (!(value.function in functionSpecs)) {
-    throw new Error(`ERROR: function ${value} is not defined`)
+    throw new Error(`function ${value} is not defined`)
   }
   const spec = functionSpecs[value.function]
   const functionEval = {...spec.defaults || {}, ...value }
   for (const field of spec.evaluate || []) {
-    functionEval[field] = evaluate(functionEval[field])
+    functionEval[field] = evaluate(functionEval[field], scope)
   }
   return spec.handler(functionEval)
 }
 
-function evaluate(value) {
+function evaluate(value, scope) {
 
   if (typeof value === 'string') {
     if (value.length > 0 && value[0] === '$') {
-      return evaluate(evaluateConstantOrVariable(value.substring(1)))
+      return evaluate(evaluateConstantOrVariable(value.substring(1), scope), scope)
     }
   }
 
   else if (Array.isArray(value)) {
-    return value.map(item => evaluate(item))
+    return value.map(item => evaluate(item, scope))
   }
   
   else if (value !== null && typeof value == 'object' && value.function) {
-    return evaluate(evaluateFunction(value))
+    return evaluate(evaluateFunction(value, scope), scope)
   }
 
   return value
 }
 
-function evaluateAction(action, spec) {
+function evaluateAction(action, spec, scope) {
 
-  const actionEval = {...commonActionSpec.defaults, ...spec.defaults || {}, ...action}
+  const actionEval = {...commonActionSpec.defaults, ...spec.defaults || {}, scope, ...action}
   for (const field of spec.evaluate || []) {
-    actionEval[field] = evaluate(actionEval[field])
+    actionEval[field] = evaluate(actionEval[field], scope)
   }
 
   return actionEval
@@ -97,11 +100,11 @@ function emitEvent(event, callback = () => {}) {
   const action = scenario.events[event]
   if (action) {
     console.log(`matched action for event ${event}`)
-    executeAction(scenario.events[event], callback)
+    executeAction(scenario.events[event], {}, callback)
   }
 } 
 
-function executeAction(action, callback = () => {}) {
+function executeAction(action, scope, callback = () => {}) {
 
   if (config.debug) {
     console.debug("DEBUG: executing action", action)
@@ -114,7 +117,7 @@ function executeAction(action, callback = () => {}) {
 
   const spec = actionSpecs[action.type]
 
-  const actionEval = evaluateAction(action, spec)
+  const actionEval = evaluateAction(action, spec, scope)
 
   const id = getNewId()
 
@@ -193,7 +196,7 @@ function executeActionSequence(id, action, callback) {
       callback()
     }
     else {      
-        executeAction(action.group[i], () => setImmediate(executeNext))
+        executeAction(action.group[i], action.scope, () => setImmediate(executeNext))
     }
   }
 
@@ -212,7 +215,7 @@ function executeActionParallel(id, action, callback) {
 
   for (const child of action.group) {
     // setImmediate(() => executeAction(child))
-    executeAction(child)
+    executeAction(child, action.scope)
   }
 
   return null
@@ -228,7 +231,7 @@ function executeActionKillAll(id, action, callback) {
 
   if (action.then) {
     //setImmediate(() => executeAction(action.then))
-    executeAction(action.then, callback)
+    executeAction(action.then, action.scope, callback)
   }
   
   return null
@@ -247,7 +250,7 @@ function executeActionKillTag(id, action, callback) {
 function executeActionTimer(id, action, callback) {
 
   const timeoutRef = setTimeout(function() {
-    executeAction(action.action, callback)
+    executeAction(action.action, action.scope, callback)
   }, action.seconds * 1000)
 
   function kill() {
@@ -269,7 +272,7 @@ function executeActionLoop(id, action, callback) {
       callback()
     }
     else {      
-        executeAction(action.action, () => setImmediate(executeNext))
+        executeAction(action.action, action.scope, () => setImmediate(executeNext))
     }
   }
 
@@ -284,10 +287,10 @@ function executeActionLoop(id, action, callback) {
 
 function executeActionCondition(id, action, callback) {
   if (action.if) {
-    executeAction(action.then, callback)
+    executeAction(action.then, action.scope, callback)
   }
   else if (action.else !== null) {
-    executeAction(action.else, callback)
+    executeAction(action.else, action.scope, callback)
   }
   return null
 }
@@ -334,10 +337,10 @@ function executeActionPinMonitor(id, action, callback) {
 
   const unmonitor = gpio.monitor(action.num, (value) => {
     if (value === 0) {
-      action.low && executeAction(action.low)
+      action.low && executeAction(action.low, action.scope)
     }
     else {
-      action.high && executeAction(action.high)  
+      action.high && executeAction(action.high, action.scope)  
     }
   })
 
@@ -385,8 +388,8 @@ function executeRadioTurnOff(id, action, callback) {
 
 function executeRadioListen(id, action, callback) {
   const removeListener = radio.listen(action.origin, action.subject, (value) => {
-    // TODO: set local scope _value
-    executeAction(action.action)
+    const scope = {...action.scope, [action.as]: value}
+    executeAction(action.action, scope)
   })
 
   function kill() {
