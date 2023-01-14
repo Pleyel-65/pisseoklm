@@ -1,5 +1,6 @@
 constants:
   track: data/disco/1.mp3
+  remoteAddr: '0x2323232323'
 
 variables:
   state: idle
@@ -52,6 +53,13 @@ events:
       - type: set
         name: state
         value: busy
+      - type: radioEmit
+        origin: master
+        subject: led1
+        dest: $remoteAddr
+        dataType: bool
+        value: true
+
       - type: audio
         repeat: false
         track: $track
@@ -64,3 +72,9 @@ events:
       - type: set
         name: state
         value: idle
+      - type: radioEmit
+        origin: master
+        subject: led1
+        dest: $remoteAddr
+        dataType: bool
+        value: false

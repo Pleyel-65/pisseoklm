@@ -401,6 +401,19 @@ function executeRadioListen(id, action, callback) {
   return kill;
 }
 
+function executeRadioEmit(id, action, callback) {
+
+  radio.emit({
+    dest: action.dest,
+    origin: action.origin,
+    subject: action.subject,
+    dataType: action.dataType,
+    value: action.value
+  })
+
+  return null;
+}
+
 const commonActionSpec = {
   defaults: {
     persist: false,
@@ -531,6 +544,11 @@ const actionSpecs = {
       subject: 'any',
       as: '_value',
     }
+  },
+  'radioEmit': {
+    handler: executeRadioEmit,
+    sync: false,
+    evaluate: ['dest', 'origin', 'subject', 'dataType', 'value'],
   }
 }
 

@@ -178,6 +178,48 @@ function onListeningStopped(isStopped, by_user, error_count) {
   console.log("radio has been stopped", isStopped, by_user, error_count)
 }
 
+module.exports.emit = function({dest, origin, subject, dataType, value}) {
+  const buf = Buffer.alloc(state.opts.payloadSize);
+
+  if (origin.length >= 8) {
+    console.error(`radioEmit origin '${origin} is too long and will be truncated`)
+  }
+  if (subject.length >= 8) {
+    console.error(`radioEmit subject '${subject} is too long and will be truncated`)
+  }
+
+  buf.write(origin, 0, 8)
+  buf.write(subject, 8, 8)
+  buf.writeUInt8(dataTypes[dataType], 16)
+
+  if (dataType === 'bool') {
+    buf.writeUInt8(value ? 1 : 0, 17)
+  }
+  else if (dataType === 'int') {
+    buf.writeInt32LE(value, 17)
+  }
+  else if (dataType === 'uint') {
+    buf.writeUInt32LE(value, 17)
+  }
+  else if (dataType === 'float') {
+    buf.writeFloatLE(value, 17)
+  }
+  else {
+    console.error(`radioEmit has invalid dataType '${dataType}', message not sent`)
+    return ;
+  }
+  buf.writeUInt8(dataTypes[dataType], 16)
+  
+  state.radio.useWritePipe(dest)
+  
+  if (state.radio.write(buf)) {
+    console.log('radioEmit success')
+  }
+  else {
+    console.log("radioEmit failed")
+  }
+}
+
 module.exports.turnOff = function() {
   if (state === null) {
     throw new Error(`radio already turned off`)
